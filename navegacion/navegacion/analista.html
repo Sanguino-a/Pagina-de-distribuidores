@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Panel del Analista (Demo)</title>
+  <meta name="description" content="Vista de analista sin backend: muestra cotizaciones de ejemplo.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#contenido">Saltar al contenido</a>
+  <header class="site-header">
+    <div class="container header-grid" role="banner">
+      <a class="brand" href="index.html">Loncheras<span class="accent">+</span></a>
+      <nav class="site-nav" aria-label="Navegación principal">
+        <ul>
+          <li><a href="index.html">Inicio</a></li>
+          <li><a href="distribuidores.html">Distribuidores</a></li>
+          <li><a href="analista.html" aria-current="page">Analista</a></li>
+          <li><a href="login.html">Iniciar sesión</a></li>
+          <li><a href="registro.html">Registrarse</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="contenido" class="container flow">
+    <h1>Panel del analista (demo)</h1>
+    <p>Revise cotizaciones de ejemplo y filtre por folio (sin Firebase).</p>
+
+    <section aria-labelledby="resumen-heading">
+      <h2 id="resumen-heading">Resumen</h2>
+      <div class="stats-grid">
+        <div class="stat-card new">
+          <span class="stat-value" id="stat-total">0</span>
+          <span class="stat-label">Cotizaciones</span>
+        </div>
+        <div class="stat-card review">
+          <span class="stat-value" id="stat-suma">0</span>
+          <span class="stat-label">Suma total (COP)</span>
+        </div>
+        <div class="stat-card approved">
+          <span class="stat-value" id="stat-filtro">—</span>
+          <span class="stat-label">Filtro actual</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="filtros-heading">
+      <h2 id="filtros-heading">Filtros</h2>
+      <form class="form" onsubmit="return false;">
+        <div class="form-grid">
+          <div class="field">
+            <label for="filtro-folio">Folio</label>
+            <input id="filtro-folio" type="text" placeholder="Ej: Q-00021">
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn" id="btn-limpiar" type="button">Limpiar filtro</button>
+          <button class="btn btn-primary" id="btn-refrescar" type="button">Recargar</button>
+        </div>
+      </form>
+    </section>
+
+    <section aria-labelledby="tabla-heading" class="card">
+      <h2 id="tabla-heading">Cotizaciones</h2>
+      <div role="table" class="table" aria-label="Tabla de cotizaciones">
+        <div class="table-head table-row">
+          <span>Folio</span>
+          <span>Proveedor</span>
+          <span>Fecha</span>
+          <span>Total (COP)</span>
+        </div>
+        <div class="table-body" id="tabla-body"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p><small>&copy; <span id="anio">2025</span> Loncheras+. Panel del analista (demo).</small></p>
+    </div>
+  </footer>
+
+  <script>
+    const $ = (sel) => document.querySelector(sel);
+    const tbody = $('#tabla-body');
+    const statTotal = $('#stat-total');
+    const statSuma = $('#stat-suma');
+    const statFiltro = $('#stat-filtro');
+    const inputFolio = $('#filtro-folio');
+    const btnLimpiar = $('#btn-limpiar');
+    const btnRefrescar = $('#btn-refrescar');
+
+    // Datos de ejemplo (en lugar de Firestore)
+    let cacheCotizaciones = [
+      { folio: "Q-00021", creadoPor: "Proveedor A", fecha: new Date("2025-08-12"), total: 195000 },
+      { folio: "Q-00022", creadoPor: "Proveedor B", fecha: new Date("2025-08-15"), total: 275000 },
+      { folio: "Q-00023", creadoPor: "Proveedor C", fecha: new Date("2025-08-18"), total: 91000 }
+    ];
+
+    const fmtCOP = (n) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(Number(n || 0));
+
+    function pintarTabla(filtro = "") {
+      const folioFiltro = filtro.trim().toLowerCase();
+      const items = cacheCotizaciones
+        .filter(c => folioFiltro ? String(c.folio || '').toLowerCase().includes(folioFiltro) : true)
+        .sort((a,b) => (b.fecha?.getTime() || 0) - (a.fecha?.getTime() || 0));
+
+      tbody.innerHTML = '';
+      let suma = 0;
+
+      items.forEach(cot => {
+        const row = document.createElement('div');
+        row.className = 'table-row';
+        const fechaTxt = cot.fecha ? cot.fecha.toISOString().split('T')[0] : '-';
+        const totalTxt = fmtCOP(cot.total || 0);
+        suma += Number(cot.total || 0);
+
+        row.innerHTML = `
+          <span>${cot.folio || '-'}</span>
+          <span>${cot.creadoPor || '-'}</span>
+          <span>${fechaTxt}</span>
+          <span>${totalTxt}</span>
+        `;
+        tbody.appendChild(row);
+      });
+
+      statTotal.textContent = String(items.length);
+      statSuma.textContent = fmtCOP(suma);
+      statFiltro.textContent = inputFolio.value ? `Folio: ${inputFolio.value}` : '—';
+
+      if (items.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'table-row';
+        empty.innerHTML = `<span>Sin resultados</span><span></span><span></span><span></span>`;
+        tbody.appendChild(empty);
+      }
+    }
+
+    function recargarDemo() {
+      // Simula recarga: añade uno aleatorio
+      const n = cacheCotizaciones.length + 1;
+      cacheCotizaciones.push({
+        folio: `Q-0002${n}`,
+        creadoPor: `Proveedor ${String.fromCharCode(64+n)}`,
+        fecha: new Date(),
+        total: Math.round(80000 + Math.random()*250000)
+      });
+      pintarTabla(inputFolio.value || '');
+    }
+
+    inputFolio.addEventListener('input', () => pintarTabla(inputFolio.value));
+    btnLimpiar.addEventListener('click', () => { inputFolio.value=''; pintarTabla(''); });
+    btnRefrescar.addEventListener('click', recargarDemo);
+
+    document.addEventListener('DOMContentLoaded', () => pintarTabla(''));
+  </script>
+</body>
+</html>

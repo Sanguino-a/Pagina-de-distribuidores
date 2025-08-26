@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Registro y Cotizaciones | Distribuidores (Demo)</title>
+  <meta name="description" content="Regístrese como distribuidor y cree cotizaciones (demo sin backend).">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#contenido">Saltar al contenido</a>
+
+  <header class="site-header">
+    <div class="container header-grid" role="banner">
+      <a class="brand" href="index.html">Loncheras<span class="accent">+</span></a>
+      <nav class="site-nav" aria-label="Navegación principal">
+        <ul>
+          <li><a href="index.html">Inicio</a></li>
+          <li><a href="distribuidores.html" aria-current="page">Distribuidores</a></li>
+          <li><a href="analista.html">Analista</a></li>
+          <li><a href="login.html">Iniciar sesión</a></li>
+          <li><a href="registro.html">Registrarse</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="contenido" class="container flow">
+    <section class="card flow" aria-labelledby="cat-heading">
+      <h2 id="cat-heading">Catálogo (API)</h2>
+      <p>Elige productos de la API y agrégalos a tu cotización.</p>
+      <div id="snacks-container" class="snack-grid" aria-live="polite"></div>
+    </section>
+
+    <section aria-labelledby="cotizacion-heading">
+      <h2 id="cotizacion-heading">Nueva cotización</h2>
+      <p>Agregue productos y establezca cantidades y precios unitarios. (Demo local, no se guarda)</p>
+
+      <form id="form-cotizacion" class="card form" aria-describedby="ayuda-cot">
+        <fieldset class="stack">
+          <legend>Datos de la cotización</legend>
+          <div class="form-grid">
+            <div class="field">
+              <label for="folio">Folio</label>
+              <input id="folio" name="folio" type="text" placeholder="Q-00021">
+            </div>
+            <div class="field">
+              <label for="validez">Validez (días)</label>
+              <input id="validez" name="validez" type="number" min="1" step="1">
+            </div>
+            <div class="field">
+              <label for="entrega">Tiempo de entrega (días)</label>
+              <input id="entrega" name="entrega" type="number" min="1" step="1">
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="stack">
+          <legend>Productos</legend>
+          <div role="table" aria-label="Productos cotizados" class="table">
+            <div class="table-head table-row">
+              <span>Producto</span>
+              <span>Cantidad</span>
+              <span>Precio unitario (COP)</span>
+              <span>Subtotal</span>
+            </div>
+            <div class="table-body" id="tbody-productos">
+              <div class="table-row">
+                <span><input type="text" placeholder="Lonchera estándar"></span>
+                <span><input type="number" min="1" step="1" value="10"></span>
+                <span><input type="number" min="0" step="100" value="11000"></span>
+                <span><output>110000</output></span>
+              </div>
+              <div class="table-row">
+                <span><input type="text" placeholder="Lonchera premium"></span>
+                <span><input type="number" min="1" step="1" value="5"></span>
+                <span><input type="number" min="0" step="100" value="17000"></span>
+                <span><output>85000</output></span>
+              </div>
+            </div>
+            <div class="table-row total-row">
+              <span>Total estimado</span>
+              <span></span>
+              <span></span>
+              <span><output id="total-general">195000</output></span>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button class="btn" type="button" id="btn-add-row">Añadir fila</button>
+            <button class="btn" type="button" id="btn-del-row">Eliminar última fila</button>
+          </div>
+        </fieldset>
+
+        <div class="actions">
+          <button class="btn btn-primary" type="submit">Simular envío</button>
+        </div>
+
+        <p id="ayuda-cot" class="visualmente-hidden">Revise cantidades y precios antes de enviar.</p>
+      </form>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p><small>&copy; <span id="anio">2025</span> Loncheras+. Portal de distribuidores (demo).</small></p>
+    </div>
+  </footer>
+
+  <!-- API del catálogo -->
+  <script src="distribuidores.js"></script>
+
+  <!-- Lógica de cotización local (sin backend) -->
+  <script>
+    const tbody = document.getElementById('tbody-productos');
+    const totalGeneralEl = document.getElementById('total-general');
+    const btnAdd = document.getElementById('btn-add-row');
+    const btnDel = document.getElementById('btn-del-row');
+
+    function parseNum(v){ const n = Number(v); return Number.isFinite(n) ? n : 0; }
+
+    function calcularFila(row) {
+      const inputs = row.querySelectorAll('input');
+      const nombre = inputs[0]?.value || '';
+      const cantidad = parseNum(inputs[1]?.value);
+      const precio = parseNum(inputs[2]?.value);
+      const subtotal = cantidad * precio;
+      const out = row.querySelector('output');
+      if (out) out.textContent = String(subtotal);
+      return { nombre, cantidad, precioUnitario: precio, subtotal };
+    }
+
+    function recalcularTodo() {
+      let total = 0;
+      tbody.querySelectorAll('.table-row').forEach(row => {
+        const { subtotal } = calcularFila(row);
+        total += subtotal;
+      });
+      totalGeneralEl.textContent = String(total);
+    }
+
+    tbody.addEventListener('input', (e) => {
+      const row = e.target.closest('.table-row');
+      if (row) { calcularFila(row); recalcularTodo(); }
+    });
+
+    btnAdd.addEventListener('click', () => {
+      const row = document.createElement('div');
+      row.className = 'table-row';
+      row.innerHTML = `
+        <span><input type="text" placeholder="Nuevo producto"></span>
+        <span><input type="number" min="1" step="1" value="1"></span>
+        <span><input type="number" min="0" step="100" value="0"></span>
+        <span><output>0</output></span>
+      `;
+      tbody.appendChild(row);
+    });
+
+    btnDel.addEventListener('click', () => {
+      const rows = tbody.querySelectorAll('.table-row');
+      if (rows.length > 0) { rows[rows.length - 1].remove(); recalcularTodo(); }
+    });
+
+    document.getElementById('form-cotizacion').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const folio = document.getElementById('folio').value.trim() || '(sin folio)';
+      const productos = [];
+      tbody.querySelectorAll('.table-row').forEach(row => {
+        const data = calcularFila(row);
+        if (data.nombre && data.cantidad > 0) productos.push(data);
+      });
+      const total = productos.reduce((a,p)=> a + p.subtotal, 0);
+      alert(`✅ Cotización simulada\nFolio: ${folio}\nProductos: ${productos.length}\nTotal: ${total}`);
+    });
+
+    document.addEventListener('DOMContentLoaded', recalcularTodo);
+  </script>
+</body>
+</html>
