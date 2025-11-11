@@ -1,0 +1,306 @@
+import { useState } from 'react';
+import { 
+  QUOTE_STATUS, 
+  QUOTE_STATUS_LABELS, 
+  updateQuoteStatus, 
+  isValidStatusTransition,
+  getQuoteStatusInfo 
+} from '../services/quotes';
+import { useToast } from '../context/ToastContext';
+
+export default function QuoteStatusManager({ 
+  quote, 
+  onStatusUpdate, 
+  canEdit = true,
+  userInfo = {}
+}) {
+  const toast = useToast();
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState(quote?.status || QUOTE_STATUS.DRAFT);
+  const [notes, setNotes] = useState('');
+  const [showNotes, setShowNotes] = useState(false);
+
+  if (!quote) return null;
+
+  const currentStatus = quote.status || QUOTE_STATUS.DRAFT;
+  const statusInfo = getQuoteStatusInfo(currentStatus);
+  
+  // Get valid next statuses
+  const getValidNextStatuses = () => {
+    const transitions = {
+      [QUOTE_STATUS.DRAFT]: [QUOTE_STATUS.SENT, QUOTE_STATUS.CANCELLED],
+      [QUOTE_STATUS.SENT]: [QUOTE_STATUS.VIEWED, QUOTE_STATUS.EXPIRED, QUOTE_STATUS.CANCELLED],
+      [QUOTE_STATUS.VIEWED]: [QUOTE_STATUS.APPROVED, QUOTE_STATUS.REJECTED, QUOTE_STATUS.EXPIRED],
+      [QUOTE_STATUS.APPROVED]: [QUOTE_STATUS.CANCELLED],
+      [QUOTE_STATUS.REJECTED]: [QUOTE_STATUS.SENT],
+      [QUOTE_STATUS.EXPIRED]: [QUOTE_STATUS.SENT],
+      [QUOTE_STATUS.CANCELLED]: [],
+      [QUOTE_STATUS.PENDING]: [QUOTE_STATUS.SENT, QUOTE_STATUS.CANCELLED]
+    };
+    
+    return (transitions[currentStatus] || []).map(status => ({
+      value: status,
+      label: QUOTE_STATUS_LABELS[status],
+      info: getQuoteStatusInfo(status)
+    }));
+  };
+
+  const validNextStatuses = getValidNextStatuses();
+
+  const handleStatusChange = async (newStatus) => {
+    if (!canEdit || isUpdating) return;
+    
+    // Validate transition
+    if (!isValidStatusTransition(currentStatus, newStatus)) {
+      toast.error('Transición de estado no válida');
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      await updateQuoteStatus(
+        quote.id,
+        newStatus,
+        userInfo,
+        notes,
+        { source: 'QuoteStatusManager' }
+      );
+      
+      toast.success(`Estado actualizado a "${QUOTE_STATUS_LABELS[newStatus]}"`);
+      setSelectedStatus(newStatus);
+      setNotes('');
+      setShowNotes(false);
+      
+      // Notify parent component
+      onStatusUpdate?.(newStatus, quote.id);
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast.error(`Error al actualizar estado: ${error.message}`);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleStatusSelect = (e) => {
+    const newStatus = e.target.value;
+    if (newStatus && newStatus !== currentStatus) {
+      if (newStatus === QUOTE_STATUS.APPROVED || newStatus === QUOTE_STATUS.REJECTED) {
+        setShowNotes(true);
+      }
+      setSelectedStatus(newStatus);
+    }
+  };
+
+  const confirmStatusChange = () => {
+    if (selectedStatus !== currentStatus) {
+      handleStatusChange(selectedStatus);
+    }
+  };
+
+  const cancelStatusChange = () => {
+    setSelectedStatus(currentStatus);
+    setNotes('');
+    setShowNotes(false);
+  };
+
+  return (
+    <div className="quote-status-manager" style={{ 
+      border: '1px solid var(--surface)', 
+      borderRadius: '.5rem', 
+      padding: '1rem',
+      background: 'var(--card)'
+    }}>
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        marginBottom: '1rem'
+      }}>
+        <h4 style={{ margin: 0, color: 'var(--text)' }}>
+          Estado de la Cotización
+        </h4>
+        <span 
+          className={`status-indicator status-${currentStatus}`}
+          style={{
+            backgroundColor: statusInfo.color,
+            color: 'white',
+            padding: '0.25rem 0.75rem',
+            borderRadius: '1rem',
+            fontSize: '0.8rem',
+            fontWeight: 'bold'
+          }}
+        >
+          {statusInfo.label}
+        </span>
+      </div>
+
+      {canEdit && validNextStatuses.length > 0 && (
+        <div className="status-controls" style={{ marginBottom: '1rem' }}>
+          <div className="field">
+            <label htmlFor="status-select">
+              Cambiar estado a:
+            </label>
+            <select
+              id="status-select"
+              value={selectedStatus}
+              onChange={handleStatusSelect}
+              disabled={isUpdating}
+              style={{
+                background: 'var(--surface)',
+                color: 'var(--text)',
+                border: '1px solid var(--surface)',
+                borderRadius: '.5rem',
+                padding: '.5rem',
+                width: '100%'
+              }}
+            >
+              {validNextStatuses.map(status => (
+                <option key={status.value} value={status.value}>
+                  {status.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {showNotes && (
+            <div className="field" style={{ marginTop: '1rem' }}>
+              <label htmlFor="status-notes">
+                Notas (opcional):
+              </label>
+              <textarea
+                id="status-notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Agregar notas sobre el cambio de estado..."
+                rows={3}
+                style={{
+                  background: 'var(--surface)',
+                  color: 'var(--text)',
+                  border: '1px solid var(--surface)',
+                  borderRadius: '.5rem',
+                  padding: '.5rem',
+                  width: '100%',
+                  resize: 'vertical'
+                }}
+              />
+            </div>
+          )}
+
+          <div className="actions" style={{ 
+            display: 'flex', 
+            gap: '0.5rem', 
+            marginTop: '1rem' 
+          }}>
+            {showNotes || selectedStatus !== currentStatus ? (
+              <>
+                <button
+                  className="btn btn-primary"
+                  onClick={confirmStatusChange}
+                  disabled={isUpdating}
+                >
+                  {isUpdating ? 'Actualizando...' : 'Confirmar Cambio'}
+                </button>
+                <button
+                  className="btn"
+                  onClick={cancelStatusChange}
+                  disabled={isUpdating}
+                >
+                  Cancelar
+                </button>
+              </>
+            ) : (
+              <button
+                className="btn"
+                onClick={() => handleStatusChange(selectedStatus)}
+                disabled={isUpdating}
+              >
+                {isUpdating ? 'Actualizando...' : `Cambiar a ${QUOTE_STATUS_LABELS[selectedStatus]}`}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Status History */}
+      {quote.statusHistory && quote.statusHistory.length > 0 && (
+        <div className="status-history" style={{ marginTop: '1.5rem' }}>
+          <h5 style={{ margin: '0 0 0.5rem 0', color: 'var(--muted)' }}>
+            Historial de Estados
+          </h5>
+          <div style={{ 
+            maxHeight: '200px', 
+            overflowY: 'auto',
+            border: '1px solid var(--surface)',
+            borderRadius: '.5rem',
+            padding: '0.5rem'
+          }}>
+            {quote.statusHistory
+              .sort((a, b) => {
+                const timeA = a.timestamp?.toDate?.() || new Date(a.timestamp);
+                const timeB = b.timestamp?.toDate?.() || new Date(b.timestamp);
+                return timeB - timeA;
+              })
+              .map((entry, index) => {
+                const entryTime = entry.timestamp?.toDate?.() || new Date(entry.timestamp);
+                const entryStatusInfo = getQuoteStatusInfo(entry.status);
+                
+                return (
+                  <div 
+                    key={index} 
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '0.5rem',
+                      padding: '0.5rem',
+                      borderBottom: index < quote.statusHistory.length - 1 ? '1px solid var(--surface)' : 'none'
+                    }}
+                  >
+                    <span 
+                      style={{
+                        backgroundColor: entryStatusInfo.color,
+                        color: 'white',
+                        padding: '0.2rem 0.5rem',
+                        borderRadius: '0.5rem',
+                        fontSize: '0.7rem',
+                        fontWeight: 'bold',
+                        minWidth: '60px',
+                        textAlign: 'center'
+                      }}
+                    >
+                      {entryStatusInfo.label}
+                    </span>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>
+                      {entryTime.toLocaleString('es-CO')}
+                    </span>
+                    {entry.userName && (
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text)' }}>
+                        por {entry.userName}
+                      </span>
+                    )}
+                    {entry.notes && (
+                      <span style={{ fontSize: '0.8rem', color: 'var(--muted)', fontStyle: 'italic' }}>
+                        - {entry.notes}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      )}
+
+      {!canEdit && (
+        <div style={{ 
+          padding: '0.5rem', 
+          background: 'var(--surface)', 
+          borderRadius: '.25rem',
+          fontSize: '0.8rem',
+          color: 'var(--muted)',
+          textAlign: 'center'
+        }}>
+          Solo lectura - No tienes permisos para cambiar el estado
+        </div>
+      )}
+    </div>
+  );
+}

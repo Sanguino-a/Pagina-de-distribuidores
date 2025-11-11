@@ -2,35 +2,59 @@ import { useEffect, useMemo, useState } from 'react';
 import { loadSnacks } from '../services/themealdb.js';
 import SnackCard from '../components/SnackCard.jsx';
 import QuoteTable from '../components/QuoteTable.jsx';
+import { useToast } from '../context/ToastContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
+import { SkeletonGrid } from '../components/SkeletonLoader.jsx';
 import { useLocalStorage } from '../hooks/useLocalStorage.js';
 import { useForm } from '../hooks/useForm.js';
-import { addQuote, watchQuotes } from '../services/quotes.js'; // <-- Importa watchQuotes
+import { addQuote, watchQuotes, QUOTE_STATUS } from '../services/quotes.js';
+import { sendQuoteEmail } from '../services/emailService.jsx';
+import { generateQuotePDF } from '../services/pdfService.jsx';
 
 export default function Distributors() {
+  const toast = useToast();
+  const { userProfile, user } = useAuth();
+  
   // Catálogo cacheado
   const [snacks, setSnacks] = useLocalStorage('catalog_snacks', null);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  
   useEffect(() => {
     (async () => {
-      if (snacks === null) {
-        const data = await loadSnacks();
-        setSnacks(data);
+      if (snacks === null && !catalogLoading) {
+        setCatalogLoading(true);
+        try {
+          const data = await loadSnacks();
+          setSnacks(data);
+        } catch (error) {
+          console.error('Error loading snacks:', error);
+          toast.error('Error al cargar el catálogo de productos');
+        } finally {
+          setCatalogLoading(false);
+        }
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [snacks, catalogLoading, setSnacks, toast]);
 
   // Filas de la cotización (persisten entre recargas)
   const [rows, setRows] = useLocalStorage('quote_rows', []);
-  const [banner, setBanner] = useState(null); // mensaje de éxito/error visual
 
   // Cotizaciones previas
   const [quotes, setQuotes] = useState([]);
+  const [quotesLoading, setQuotesLoading] = useState(true);
+  
   useEffect(() => {
-    const unsub = watchQuotes(setQuotes);
+    const unsub = watchQuotes((quotesData) => {
+      setQuotes(quotesData);
+      setQuotesLoading(false);
+    }, {
+      userFilter: user?.uid // Only show quotes from current user
+    });
     return () => unsub();
-  }, []);
+  }, [user]);
 
-  // Form con validación
+  // Form con validación mejorada
   const {
     values, setValues, errors, touched,
     isSubmitting, submitError,
@@ -61,8 +85,9 @@ export default function Distributors() {
       try {
         await addQuote({
           folio: v.folio,
-          creadoPor: 'Proveedor Demo',
+          userProfile: userProfile || { displayName: 'Usuario Anónimo', email: user?.email || '' },
           items: rows,
+          status: QUOTE_STATUS.DRAFT,
           meta: {
             validezDias: Number(v.validez) || null,
             tiempoEntregaDias: Number(v.entrega) || null
@@ -71,16 +96,17 @@ export default function Distributors() {
         setRows([]);
         reset();
         setValues({ folio: '', validez: '', entrega: '' });
-        setTimeout(() => setBanner(null), 3000);
-      } 
+        toast.success(`Cotización "${v.folio}" enviada exitosamente`);
+      }
       catch (err) {
-        setBanner({ type: 'error', text: `⚠ Error al guardar: ${err.message}` });
+        toast.error(`Error al guardar: ${err.message}`);
       }
     }
   });
 
   const addFromCatalog = (name, price = 12000) => {
     setRows(prev => [...prev, { nombre: name, cantidad: 1, precio: price }]);
+    toast.success(`"${name}" agregado a la cotización`);
   };
 
   const total = useMemo(
@@ -92,6 +118,7 @@ export default function Distributors() {
     setRows([]);
     reset();
     setValues({ folio: '', validez: '', entrega: '' });
+    toast.info('Formulario limpiado');
   };
 
   return (
@@ -100,7 +127,9 @@ export default function Distributors() {
         <h2 id="cat-heading">Catálogo (API)</h2>
         <p>Elige productos y agrégalos a tu cotización.</p>
         <div id="snacks-container" className="snack-grid" aria-live="polite">
-          {snacks === null ? (
+          {catalogLoading ? (
+            <SkeletonGrid items={6} />
+          ) : snacks === null ? (
             <div className="loader" role="status" aria-label="Cargando catálogo..." />
           ) : snacks.length === 0 ? (
             <p>No se encontraron productos.</p>
@@ -120,16 +149,6 @@ export default function Distributors() {
       <section aria-labelledby="cotizacion-heading">
         <h2 id="cotizacion-heading">Nueva cotización</h2>
         <p>Agregue productos y establezca cantidades y precios unitarios.</p>
-
-        {/* Banner accesible */}
-        <div aria-live="polite" style={{ minHeight: 24 }}>
-          {banner && (
-            <div className={`alert ${banner.type === 'success' ? 'alert-success' : 'alert-error'}`}>
-              {banner.text}
-            </div>
-          )}
-          {submitError && <div className="alert alert-error">⚠ {submitError}</div>}
-        </div>
 
         <form className="card form" onSubmit={handleSubmit} aria-describedby="ayuda-cot" noValidate>
           <div className="form-grid">
@@ -199,7 +218,11 @@ export default function Distributors() {
       {/* Cotizaciones previas */}
       <section aria-labelledby="prev-quotes-heading">
         <h2 id="prev-quotes-heading">Cotizaciones previas</h2>
-        {quotes.length === 0 ? (
+        {quotesLoading ? (
+          <div className="card" style={{ padding: '2rem', textAlign: 'center' }}>
+            <div className="loader" role="status" aria-label="Cargando cotizaciones..." />
+          </div>
+        ) : quotes.length === 0 ? (
           <p>No hay cotizaciones previas.</p>
         ) : (
           <table className="card" style={{ width: '100%', marginBottom: 24 }}>
@@ -209,19 +232,33 @@ export default function Distributors() {
                 <th>Creado por</th>
                 <th>Fecha</th>
                 <th>Total</th>
+                <th>Estado</th>
               </tr>
             </thead>
             <tbody>
               {quotes.map(q => (
                 <tr key={q.id}>
                   <td>{q.folio}</td>
-                  <td>{q.creadoPor}</td>
+                  <td>{q.creadoPorEmail || q.creadoPor || 'Email no disponible'}</td>
                   <td>
-                    {q.createdAt?.toDate?.() 
-                      ? q.createdAt.toDate().toLocaleDateString('es-CO') 
+                    {q.createdAt?.toDate?.()
+                      ? q.createdAt.toDate().toLocaleDateString('es-CO')
                       : '-'}
                   </td>
                   <td>${q.total?.toLocaleString('es-CO') ?? 0}</td>
+                  <td>
+                    <span style={{
+                      background: q.status === 'approved' ? '#10b981' :
+                                 q.status === 'rejected' ? '#ef4444' :
+                                 q.status === 'sent' ? '#3b82f6' : '#6b7280',
+                      color: 'white',
+                      padding: '0.2rem 0.5rem',
+                      borderRadius: '0.5rem',
+                      fontSize: '0.8rem'
+                    }}>
+                      {q.status || 'draft'}
+                    </span>
+                  </td>
                 </tr>
               ))}
             </tbody>

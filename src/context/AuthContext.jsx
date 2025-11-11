@@ -8,6 +8,7 @@ const AuthContext = createContext();
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [rol, setRol] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -15,9 +16,18 @@ export function AuthProvider({ children }) {
       setUser(firebaseUser);
       if (firebaseUser) {
         const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-        setRol(userDoc.data()?.rol || null);
+        const userData = userDoc.data() || {};
+        
+        setRol(userData.rol || null);
+        setUserProfile({
+          ...userData,
+          email: firebaseUser.email,
+          displayName: firebaseUser.displayName || userData.nombre || firebaseUser.email,
+          uid: firebaseUser.uid
+        });
       } else {
         setRol(null);
+        setUserProfile(null);
       }
       setLoading(false);
     });
@@ -25,7 +35,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, rol, loading }}>
+    <AuthContext.Provider value={{ user, rol, userProfile, loading }}>
       {children}
     </AuthContext.Provider>
   );
