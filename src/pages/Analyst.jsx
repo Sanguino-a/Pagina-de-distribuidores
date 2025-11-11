@@ -2,8 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { StatCards } from '../components/StatCards.jsx';
 import { fmtCOP } from '../utils/format.js';
 import { watchQuotes } from '../services/quotes.js';
+import { useAuth } from '../context/AuthContext.jsx';
+import AnalystQuoteActions from '../components/AnalystQuoteActions.jsx';
 
 export default function Analyst() {
+  // Auth context for user profile
+  const { userProfile } = useAuth();
+  
   // Datos en tiempo real desde Firestore
   const [quotes, setQuotes] = useState([]);
   const [selectedQuote, setSelectedQuote] = useState(null);
@@ -214,11 +219,37 @@ export default function Analyst() {
     setStatusFilter('');
   };
   
+  // === Manejo de cambios de estado por analista ===
+  const handleStatusUpdate = (newStatus, quoteId) => {
+    setQuotes(prevQuotes =>
+      prevQuotes.map(quote =>
+        quote.id === quoteId
+          ? { ...quote, status: newStatus }
+          : quote
+      )
+    );
+    // Close modal if the updated quote was selected
+    if (selectedQuote?.id === quoteId) {
+      setSelectedQuote(prev => prev ? { ...prev, status: newStatus } : null);
+    }
+  };
+  
+  // === Manejo de eliminación de cotizaciones ===
+  const handleQuoteDeleted = (quoteId) => {
+    setQuotes(prevQuotes =>
+      prevQuotes.filter(quote => quote.id !== quoteId)
+    );
+    // Close modal if the deleted quote was selected
+    if (selectedQuote?.id === quoteId) {
+      setSelectedQuote(null);
+    }
+  };
+  
   // === Exportar CSV ===
   const exportToCSV = () => {
     const headers = [
       'Folio',
-      'Proveedor', 
+      'Proveedor',
       'Fecha',
       'Total (COP)',
       'Status',
@@ -619,6 +650,14 @@ export default function Analyst() {
               )}
             </div>
           </div>
+          
+          {/* Acciones específicas para analistas */}
+          <AnalystQuoteActions
+            quote={selectedQuote}
+            userProfile={userProfile}
+            onStatusUpdate={handleStatusUpdate}
+            onQuoteDeleted={handleQuoteDeleted}
+          />
         </section>
       )}
     </>
