@@ -45,13 +45,35 @@ export default function Distributors() {
   const [quotesLoading, setQuotesLoading] = useState(true);
   
   useEffect(() => {
-    const unsub = watchQuotes((quotesData) => {
-      setQuotes(quotesData);
+    // If user is not authenticated, stop loading and show empty state
+    if (!user) {
+      console.log('User not authenticated, stopping quotes loading');
+      setQuotes([]);
       setQuotesLoading(false);
+      return;
+    }
+    
+    console.log('Setting up quotes watcher for user:', user.uid);
+    
+    // Set a timeout to prevent infinite loading
+    const loadingTimeout = setTimeout(() => {
+      console.log('Quotes loading timeout reached, setting loading to false');
+      setQuotesLoading(false);
+    }, 5000); // 5 second timeout
+    
+    const unsub = watchQuotes((quotesData) => {
+      console.log('Quotes loaded:', quotesData.length, 'quotes for user:', user.uid);
+      setQuotes(quotesData || []);
+      setQuotesLoading(false);
+      clearTimeout(loadingTimeout);
     }, {
       userFilter: user?.uid // Only show quotes from current user
     });
-    return () => unsub();
+    
+    return () => {
+      unsub();
+      clearTimeout(loadingTimeout);
+    };
   }, [user]);
 
   // Form con validación mejorada
@@ -223,7 +245,13 @@ export default function Distributors() {
             <div className="loader" role="status" aria-label="Cargando cotizaciones..." />
           </div>
         ) : quotes.length === 0 ? (
-          <p>No hay cotizaciones previas.</p>
+          <div className="card" style={{ padding: '2rem', textAlign: 'center' }}>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📝</div>
+            <h3 style={{ color: 'var(--muted)', marginBottom: '0.5rem' }}>No hay cotizaciones previas</h3>
+            <p style={{ color: 'var(--muted)' }}>
+              {user ? 'Aún no has creado ninguna cotización. ¡Comienza creando tu primera cotización!' : 'Inicia sesión para ver tus cotizaciones.'}
+            </p>
+          </div>
         ) : (
           <table className="card" style={{ width: '100%', marginBottom: 24 }}>
             <thead>
