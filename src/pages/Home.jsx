@@ -5,16 +5,30 @@ export default function Home() {
     <>
       {/* Hero Section - Professional Design */}
       <section className="hero">
-        <div className="container" style={{ textAlign: 'center', maxWidth: '800px' }}>
+        <div className="container" style={{
+          textAlign: 'center',
+          maxWidth: '800px',
+          position: 'relative',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center'
+        }}>
           <div className="badge badge-info" style={{ marginBottom: 'var(--space-4)', fontSize: 'var(--text-sm)' }}>
             🚀 Plataforma B2B para Loncheras Nutritivas
           </div>
           <h1 style={{ marginBottom: 'var(--space-6)' }}>Portal de Distribuidores</h1>
-          <p style={{ fontSize: 'var(--text-xl)', marginBottom: 'var(--space-8)', color: 'var(--text-secondary)' }}>
+          
+          <div align="center" style={{
+            fontSize: 'var(--text-xl)',
+            marginBottom: 'var(--space-8)',
+            color: 'var(--text-secondary)',
+            lineHeight: '1.6'
+          }}>
             Conecta con colegios y empresas. Crea cotizaciones de
             <strong style={{ color: 'var(--accent)' }}> loncheras nutritivas</strong>
             {' '}con entrega a domicilio de forma profesional.
-          </p>
+          </div>
+          
           <div style={{ display: 'flex', gap: 'var(--space-4)', justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link className="btn btn-primary" to="/distribuidores">
               🚀 Comenzar ahora
