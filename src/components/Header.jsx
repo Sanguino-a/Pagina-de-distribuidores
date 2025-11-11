@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import ThemeToggle from './ThemeToggle'
 
 export default function Header() {
   return (
@@ -12,6 +13,7 @@ export default function Header() {
             <li><NavLink to="/analista">Analista</NavLink></li>
             <li><NavLink to="/login">Iniciar sesión</NavLink></li>
             <li><NavLink to="/registro">Registrarse</NavLink></li>
+            <li><ThemeToggle /></li>
           </ul>
         </nav>
       </div>
