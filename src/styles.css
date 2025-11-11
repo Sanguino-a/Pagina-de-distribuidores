@@ -302,10 +302,39 @@ p {
   margin-bottom: var(--space-4);
 }
 
-.hero p {
+/* .hero p {
   max-width: 600px;
   font-size: var(--text-lg);
   color: var(--text-secondary);
+  text-align: center;
+} */
+
+/* ULTRA-SPECIFIC targeting for centered tagline */
+#centered-tagline {
+  text-align: center !important;
+  display: block !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  width: 100% !important;
+}
+
+/* Force center text including strong tags */
+#centered-tagline,
+#centered-tagline strong,
+#centered-tagline span {
+  text-align: center !important;
+}
+
+/* Container level centering */
+.hero #centered-tagline {
+  text-align: center !important;
+  margin: 0 auto var(--space-8) auto !important;
+}
+
+/* Nuclear option - everything in hero centered */
+.hero #centered-tagline,
+.hero #centered-tagline * {
+  text-align: center !important;
 }
 
 /* === Botones profesionales === */
