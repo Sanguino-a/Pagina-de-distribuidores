@@ -1,7 +1,7 @@
 import {
   addDoc, collection, serverTimestamp, onSnapshot,
   query, orderBy, getDocs, where, updateDoc, doc,
-  arrayUnion, arrayRemove, increment, getDoc
+  arrayUnion, arrayRemove, increment, getDoc, deleteDoc
 } from "firebase/firestore";
 import { db } from "./firebase";
 
@@ -41,14 +41,14 @@ export const QUOTE_STATUS_COLORS = {
 
 // Valid status transitions
 export const VALID_STATUS_TRANSITIONS = {
-  [QUOTE_STATUS.DRAFT]: [QUOTE_STATUS.SENT, QUOTE_STATUS.CANCELLED],
-  [QUOTE_STATUS.SENT]: [QUOTE_STATUS.VIEWED, QUOTE_STATUS.EXPIRED, QUOTE_STATUS.CANCELLED],
+  [QUOTE_STATUS.DRAFT]: [QUOTE_STATUS.SENT, QUOTE_STATUS.CANCELLED, QUOTE_STATUS.APPROVED, QUOTE_STATUS.REJECTED],
+  [QUOTE_STATUS.SENT]: [QUOTE_STATUS.VIEWED, QUOTE_STATUS.EXPIRED, QUOTE_STATUS.CANCELLED, QUOTE_STATUS.APPROVED, QUOTE_STATUS.REJECTED],
   [QUOTE_STATUS.VIEWED]: [QUOTE_STATUS.APPROVED, QUOTE_STATUS.REJECTED, QUOTE_STATUS.EXPIRED],
   [QUOTE_STATUS.APPROVED]: [QUOTE_STATUS.CANCELLED],
-  [QUOTE_STATUS.REJECTED]: [QUOTE_STATUS.SENT],
-  [QUOTE_STATUS.EXPIRED]: [QUOTE_STATUS.SENT],
+  [QUOTE_STATUS.REJECTED]: [QUOTE_STATUS.SENT, QUOTE_STATUS.CANCELLED],
+  [QUOTE_STATUS.EXPIRED]: [QUOTE_STATUS.SENT, QUOTE_STATUS.CANCELLED],
   [QUOTE_STATUS.CANCELLED]: [],
-  [QUOTE_STATUS.PENDING]: [QUOTE_STATUS.SENT, QUOTE_STATUS.CANCELLED]
+  [QUOTE_STATUS.PENDING]: [QUOTE_STATUS.SENT, QUOTE_STATUS.CANCELLED, QUOTE_STATUS.APPROVED, QUOTE_STATUS.REJECTED]
 };
 
 export async function folioExists(folio) {
@@ -272,8 +272,182 @@ export function getQuoteStatistics(quotes) {
     totalQuotes: quotes.length,
     totalValue,
     approvedValue,
-    conversionRate: stats[QUOTE_STATUS.APPROVED] && quotes.length > 0 
+    conversionRate: stats[QUOTE_STATUS.APPROVED] && quotes.length > 0
       ? (stats[QUOTE_STATUS.APPROVED] / quotes.length * 100).toFixed(1)
       : 0
   };
+}
+
+export async function deleteQuote(quoteId, userInfo = {}) {
+  const quoteRef = doc(db, "quotes", quoteId);
+  
+  try {
+    await deleteDoc(quoteRef);
+    console.log('Quote deleted successfully:', quoteId);
+    return { success: true, id: quoteId, deletedAt: new Date() };
+  } catch (error) {
+    console.error('Error deleting quote:', error);
+    throw new Error(`Error al eliminar cotización: ${error.message}`);
+  }
+}
+
+export async function approveQuote(quoteId, userInfo = {}) {
+  // For analysts, skip normal state validation and directly approve
+  const quoteRef = doc(db, "quotes", quoteId);
+  const currentQuote = await getCurrentQuote(quoteId);
+  
+  if (!currentQuote) {
+    throw new Error('Cotización no encontrada');
+  }
+
+  const statusHistoryEntry = {
+    status: QUOTE_STATUS.APPROVED,
+    timestamp: new Date(),
+    userId: userInfo.userId || 'system',
+    userName: userInfo.userName || 'Usuario',
+    notes: 'Cotización aprobada por analista',
+    source: 'AnalystApproval'
+  };
+
+  const updateData = {
+    status: QUOTE_STATUS.APPROVED,
+    statusHistory: arrayUnion(statusHistoryEntry),
+    approvedAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  };
+
+  await updateDoc(quoteRef, updateData);
+  return { ...currentQuote, ...updateData, id: quoteId };
+}
+
+export async function rejectAndDeleteQuote(quoteId, userInfo = {}, reason = '') {
+  // For analysts, first update status to rejected (with special handling)
+  const quoteRef = doc(db, "quotes", quoteId);
+  const currentQuote = await getCurrentQuote(quoteId);
+  
+  if (!currentQuote) {
+    throw new Error('Cotización no encontrada');
+  }
+
+  const statusHistoryEntry = {
+    status: QUOTE_STATUS.REJECTED,
+    timestamp: new Date(),
+    userId: userInfo.userId || 'system',
+    userName: userInfo.userName || 'Usuario',
+    notes: reason || 'Cotización rechazada por analista - será eliminada',
+    source: 'AnalystRejection'
+  };
+
+  const updateData = {
+    status: QUOTE_STATUS.REJECTED,
+    statusHistory: arrayUnion(statusHistoryEntry),
+    rejectedAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  };
+
+  await updateDoc(quoteRef, updateData);
+  
+  // Wait a moment to ensure status update is completed
+  await new Promise(resolve => setTimeout(resolve, 100));
+  
+  // Then delete the quote
+  return await deleteQuote(quoteId, userInfo);
+}
+
+export function canAnalystModify(quote, userProfile = {}) {
+  // Check if user has analyst role
+  if (userProfile.rol !== 'analista') {
+    return false;
+  }
+  
+  // Analysts can only modify quotes from distributors (not their own)
+  if (quote.creadoPorUid === userProfile.uid) {
+    return false;
+  }
+  
+  // Analysts can modify quotes that are not yet approved
+  if (quote.status === QUOTE_STATUS.APPROVED) {
+    return false;
+  }
+
+  // Analysts can modify quotes in any other status
+  return true;
+}
+
+export function canAnalystDelete(quote, userProfile = {}) {
+  // Check if user has analyst role and can modify
+  if (!canAnalystModify(quote, userProfile)) {
+    return false;
+  }
+  
+  // Analysts can delete quotes in most statuses except approved
+  const deletableStatuses = [
+    QUOTE_STATUS.REJECTED,
+    QUOTE_STATUS.EXPIRED,
+    QUOTE_STATUS.CANCELLED,
+    QUOTE_STATUS.DRAFT,
+    QUOTE_STATUS.SENT,
+    QUOTE_STATUS.VIEWED,
+    QUOTE_STATUS.PENDING
+  ];
+  
+  return deletableStatuses.includes(quote.status);
+}
+
+export function getAnalystWorkflowInfo(quote) {
+  // Provide workflow guidance based on current quote status
+  const info = {
+    canApprove: false,
+    canRejectDelete: false,
+    currentStatus: quote.status,
+    statusDescription: '',
+    recommendation: ''
+  };
+
+  switch (quote.status) {
+    case QUOTE_STATUS.DRAFT:
+      info.canApprove = true;
+      info.canRejectDelete = true;
+      info.statusDescription = 'Cotización en borrador';
+      info.recommendation = 'Puede ser aprobada directamente o rechazada y eliminada';
+      break;
+    
+    case QUOTE_STATUS.SENT:
+      info.canApprove = true;
+      info.canRejectDelete = true;
+      info.statusDescription = 'Cotización enviada';
+      info.recommendation = 'Pendiente de revisión por analista';
+      break;
+    
+    case QUOTE_STATUS.VIEWED:
+      info.canApprove = true;
+      info.canRejectDelete = true;
+      info.statusDescription = 'Cotización vista por distribuidor';
+      info.recommendation = 'Lista para revisión y decisión final';
+      break;
+    
+    case QUOTE_STATUS.APPROVED:
+      info.canApprove = false;
+      info.canRejectDelete = false;
+      info.statusDescription = 'Cotización aprobada';
+      info.recommendation = 'No se puede modificar - cotización ya aprobada';
+      break;
+    
+    case QUOTE_STATUS.REJECTED:
+    case QUOTE_STATUS.EXPIRED:
+    case QUOTE_STATUS.CANCELLED:
+      info.canApprove = false;
+      info.canRejectDelete = true;
+      info.statusDescription = `Cotización ${quote.status === QUOTE_STATUS.REJECTED ? 'rechazada' : quote.status === QUOTE_STATUS.EXPIRED ? 'expirada' : 'cancelada'}`;
+      info.recommendation = 'Puede ser eliminada si es necesario';
+      break;
+    
+    default:
+      info.canApprove = true;
+      info.canRejectDelete = true;
+      info.statusDescription = 'Estado no definido';
+      info.recommendation = 'Requiere revisión del analista';
+  }
+
+  return info;
 }
