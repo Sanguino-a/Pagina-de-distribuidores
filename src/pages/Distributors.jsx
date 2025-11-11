@@ -144,155 +144,258 @@ export default function Distributors() {
   };
 
   return (
-    <>
-      <section className="card flow" aria-labelledby="cat-heading">
-        <h2 id="cat-heading">Catálogo (API)</h2>
-        <p>Elige productos y agrégalos a tu cotización.</p>
-        <div id="snacks-container" className="snack-grid" aria-live="polite">
-          {catalogLoading ? (
-            <SkeletonGrid items={6} />
-          ) : snacks === null ? (
-            <div className="loader" role="status" aria-label="Cargando catálogo..." />
-          ) : snacks.length === 0 ? (
-            <p>No se encontraron productos.</p>
-          ) : (
-            snacks.map((s, i) => (
-              <SnackCard
-                key={i}
-                name={s.name}
-                img={s.img}
-                onAdd={() => addFromCatalog(s.name, 12000)}
-              />
-            ))
-          )}
+    <div className="container">
+      {/* Page Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="mb-2">Panel de Distribuidores</h1>
+          <p className="text-secondary">Gestiona tus cotizaciones de loncheras nutritivas</p>
+        </div>
+        <div className="badge badge-info">
+          {user?.email || 'Usuario'}
+        </div>
+      </div>
+
+      {/* Product Catalog Section */}
+      <section className="mb-12">
+        <div className="card">
+          <div className="card-header">
+            <div className="card-icon">🛍️</div>
+            <div>
+              <h2 className="card-title" id="cat-heading">Catálogo de Productos</h2>
+              <p className="card-subtitle">Selecciona productos y agrégalos a tu cotización</p>
+            </div>
+          </div>
+          
+          <div id="snacks-container" className="grid grid-4" aria-live="polite">
+            {catalogLoading ? (
+              <SkeletonGrid items={6} />
+            ) : snacks === null ? (
+              <div className="card" style={{ padding: '2rem', textAlign: 'center', gridColumn: '1 / -1' }}>
+                <div className="loader" role="status" aria-label="Cargando catálogo..." />
+                <p className="mt-4 text-muted">Cargando productos...</p>
+              </div>
+            ) : snacks.length === 0 ? (
+              <div className="card" style={{ padding: '2rem', textAlign: 'center', gridColumn: '1 / -1' }}>
+                <div style={{ fontSize: '3rem', marginBottom: 'var(--space-4)' }}>📦</div>
+                <h3 className="mb-2">No se encontraron productos</h3>
+                <p className="text-muted">El catálogo está vacío en este momento</p>
+              </div>
+            ) : (
+              snacks.map((s, i) => (
+                <div key={i} className="card card-interactive" style={{ textAlign: 'center' }}>
+                  {s.img && (
+                    <img 
+                      src={s.img} 
+                      alt={s.name} 
+                      style={{ 
+                        width: '100%', 
+                        height: '150px', 
+                        objectFit: 'cover', 
+                        borderRadius: 'var(--radius-lg)',
+                        marginBottom: 'var(--space-4)'
+                      }}
+                    />
+                  )}
+                  <h4 style={{ marginBottom: 'var(--space-2)' }}>{s.name}</h4>
+                  <p className="text-sm text-muted mb-4">Postres nutritivos</p>
+                  <p className="text-lg font-semibold text-accent mb-4">$12,000 COP</p>
+                  <button 
+                    className="btn btn-primary" 
+                    onClick={() => addFromCatalog(s.name, 12000)}
+                    style={{ width: '100%' }}
+                  >
+                    ➕ Agregar a cotización
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </section>
 
-      <section aria-labelledby="cotizacion-heading">
-        <h2 id="cotizacion-heading">Nueva cotización</h2>
-        <p>Agregue productos y establezca cantidades y precios unitarios.</p>
-
-        <form className="card form" onSubmit={handleSubmit} aria-describedby="ayuda-cot" noValidate>
-          <div className="form-grid">
-            <div className="field">
-              <label htmlFor="folio">Folio</label>
-              <input
-                id="folio" name="folio" type="text" placeholder="Q-00021"
-                value={values.folio} onChange={handleChange} onBlur={handleBlur}
-                aria-invalid={!!(touched.folio && errors.folio)}
-                aria-describedby={touched.folio && errors.folio ? "err-folio" : undefined}
-              />
-              {touched.folio && errors.folio && (
-                <small id="err-folio" style={{ color: 'var(--danger)' }}>{errors.folio}</small>
-              )}
-            </div>
-
-            <div className="field">
-              <label htmlFor="validez">Validez (días)</label>
-              <input
-                id="validez" name="validez" type="number" min="1" step="1"
-                value={values.validez} onChange={handleChange} onBlur={handleBlur}
-                aria-invalid={!!(touched.validez && errors.validez)}
-                aria-describedby={touched.validez && errors.validez ? "err-validez" : undefined}
-              />
-              {touched.validez && errors.validez && (
-                <small id="err-validez" style={{ color: 'var(--danger)' }}>{errors.validez}</small>
-              )}
-            </div>
-
-            <div className="field">
-              <label htmlFor="entrega">Tiempo de entrega (días)</label>
-              <input
-                id="entrega" name="entrega" type="number" min="1" step="1"
-                value={values.entrega} onChange={handleChange} onBlur={handleBlur}
-                aria-invalid={!!(touched.entrega && errors.entrega)}
-                aria-describedby={touched.entrega && errors.entrega ? "err-entrega" : undefined}
-              />
-              {touched.entrega && errors.entrega && (
-                <small id="err-entrega" style={{ color: 'var(--danger)' }}>{errors.entrega}</small>
-              )}
+      {/* Quote Creation Form */}
+      <section className="mb-12">
+        <div className="card card-elevated">
+          <div className="card-header">
+            <div className="card-icon">📋</div>
+            <div>
+              <h2 className="card-title" id="cotizacion-heading">Crear Nueva Cotización</h2>
+              <p className="card-subtitle">Completa los detalles de tu cotización</p>
             </div>
           </div>
 
-          
-          <QuoteTable rows={rows} setRows={setRows} />
+          <form className="form" onSubmit={handleSubmit} aria-describedby="ayuda-cot" noValidate>
+            {/* Quote Details */}
+            <div className="form-grid">
+              <div className="field">
+                <label htmlFor="folio">Folio de Cotización</label>
+                <input
+                  id="folio" name="folio" type="text" placeholder="Q-00021"
+                  value={values.folio} onChange={handleChange} onBlur={handleBlur}
+                  aria-invalid={!!(touched.folio && errors.folio)}
+                  aria-describedby={touched.folio && errors.folio ? "err-folio" : undefined}
+                />
+                {touched.folio && errors.folio && (
+                  <small id="err-folio" className="field-error">{errors.folio}</small>
+                )}
+              </div>
 
-          {errors.rows && <small style={{ color: 'var(--danger)' }}>{errors.rows}</small>}
+              <div className="field">
+                <label htmlFor="validez">Validez (días)</label>
+                <input
+                  id="validez" name="validez" type="number" min="1" step="1" placeholder="30"
+                  value={values.validez} onChange={handleChange} onBlur={handleBlur}
+                  aria-invalid={!!(touched.validez && errors.validez)}
+                  aria-describedby={touched.validez && errors.validez ? "err-validez" : undefined}
+                />
+                {touched.validez && errors.validez && (
+                  <small id="err-validez" className="field-error">{errors.validez}</small>
+                )}
+              </div>
 
-          <div className="actions">
-            <button className="btn btn-primary" type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Enviando…' : 'Enviar a Firebase'}
-            </button>
-            <button className="btn" type="button" onClick={limpiarTodo} disabled={isSubmitting}>
-              Limpiar
-            </button>
-            <span style={{ marginLeft: 'auto', opacity: .8 }}>
-              Total: {total.toLocaleString('es-CO')}
-            </span>
-          </div>
+              <div className="field">
+                <label htmlFor="entrega">Tiempo de Entrega (días)</label>
+                <input
+                  id="entrega" name="entrega" type="number" min="1" step="1" placeholder="5"
+                  value={values.entrega} onChange={handleChange} onBlur={handleBlur}
+                  aria-invalid={!!(touched.entrega && errors.entrega)}
+                  aria-describedby={touched.entrega && errors.entrega ? "err-entrega" : undefined}
+                />
+                {touched.entrega && errors.entrega && (
+                  <small id="err-entrega" className="field-error">{errors.entrega}</small>
+                )}
+              </div>
+            </div>
 
-          <p id="ayuda-cot" className="visualmente-hidden">
-            Revise cantidades y precios antes de enviar.
-          </p>
-        </form>
-      </section>
+            {/* Products Table */}
+            <QuoteTable rows={rows} setRows={setRows} />
 
-      {/* Cotizaciones previas */}
-      <section aria-labelledby="prev-quotes-heading">
-        <h2 id="prev-quotes-heading">Cotizaciones previas</h2>
-        {quotesLoading ? (
-          <div className="card" style={{ padding: '2rem', textAlign: 'center' }}>
-            <div className="loader" role="status" aria-label="Cargando cotizaciones..." />
-          </div>
-        ) : quotes.length === 0 ? (
-          <div className="card" style={{ padding: '2rem', textAlign: 'center' }}>
-            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📝</div>
-            <h3 style={{ color: 'var(--muted)', marginBottom: '0.5rem' }}>No hay cotizaciones previas</h3>
-            <p style={{ color: 'var(--muted)' }}>
-              {user ? 'Aún no has creado ninguna cotización. ¡Comienza creando tu primera cotización!' : 'Inicia sesión para ver tus cotizaciones.'}
+            {errors.rows && (
+              <div className="field-error text-center">{errors.rows}</div>
+            )}
+
+            {/* Form Actions */}
+            <div className="flex justify-between items-center" style={{ marginTop: 'var(--space-6)' }}>
+              <div className="flex gap-4">
+                <button className="btn btn-primary" type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <div className="animate-pulse">⏳</div>
+                      Enviando...
+                    </>
+                  ) : (
+                    <>
+                      📤 Enviar Cotización
+                    </>
+                  )}
+                </button>
+                <button className="btn btn-secondary" type="button" onClick={limpiarTodo} disabled={isSubmitting}>
+                  🗑️ Limpiar Todo
+                </button>
+              </div>
+              
+              <div className="text-right">
+                <div className="text-sm text-muted">Total Estimado</div>
+                <div className="text-2xl font-bold text-accent">
+                  ${total.toLocaleString('es-CO')} COP
+                </div>
+              </div>
+            </div>
+
+            <p id="ayuda-cot" className="visualmente-hidden">
+              Revise cantidades y precios antes de enviar.
             </p>
-          </div>
-        ) : (
-          <table className="card" style={{ width: '100%', marginBottom: 24 }}>
-            <thead>
-              <tr>
-                <th>Folio</th>
-                <th>Creado por</th>
-                <th>Fecha</th>
-                <th>Total</th>
-                <th>Estado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {quotes.map(q => (
-                <tr key={q.id}>
-                  <td>{q.folio}</td>
-                  <td>{q.creadoPorEmail || q.creadoPor || 'Email no disponible'}</td>
-                  <td>
-                    {q.createdAt?.toDate?.()
-                      ? q.createdAt.toDate().toLocaleDateString('es-CO')
-                      : '-'}
-                  </td>
-                  <td>${q.total?.toLocaleString('es-CO') ?? 0}</td>
-                  <td>
-                    <span style={{
-                      background: q.status === 'approved' ? '#10b981' :
-                                 q.status === 'rejected' ? '#ef4444' :
-                                 q.status === 'sent' ? '#3b82f6' : '#6b7280',
-                      color: 'white',
-                      padding: '0.2rem 0.5rem',
-                      borderRadius: '0.5rem',
-                      fontSize: '0.8rem'
-                    }}>
-                      {q.status || 'draft'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+          </form>
+        </div>
       </section>
-    </>
+
+      {/* Previous Quotes Section */}
+      <section>
+        <div className="card">
+          <div className="card-header">
+            <div className="card-icon">📊</div>
+            <div>
+              <h2 className="card-title" id="prev-quotes-heading">Mis Cotizaciones Anteriores</h2>
+              <p className="card-subtitle">Historial de cotizaciones enviadas</p>
+            </div>
+          </div>
+          
+          {quotesLoading ? (
+            <div className="card" style={{ padding: '3rem', textAlign: 'center' }}>
+              <div className="animate-pulse">
+                <div className="loader" role="status" aria-label="Cargando cotizaciones..." />
+              </div>
+              <p className="mt-4 text-muted">Cargando cotizaciones...</p>
+            </div>
+          ) : quotes.length === 0 ? (
+            <div className="card" style={{ padding: '3rem', textAlign: 'center' }}>
+              <div style={{ fontSize: '4rem', marginBottom: 'var(--space-4)' }}>📝</div>
+              <h3 style={{ color: 'var(--text-muted)', marginBottom: 'var(--space-2)' }}>No hay cotizaciones previas</h3>
+              <p style={{ color: 'var(--text-muted)' }}>
+                {user ? 
+                  'Aún no has creado ninguna cotización. ¡Comienza creando tu primera cotización usando el formulario de arriba!' : 
+                  'Inicia sesión para ver tus cotizaciones y crear nuevas.'
+                }
+              </p>
+            </div>
+          ) : (
+            <div className="table-container">
+              <table className="table">
+                <thead className="table-head">
+                  <tr>
+                    <th>Folio</th>
+                    <th>Email del Usuario</th>
+                    <th>Fecha de Creación</th>
+                    <th>Total</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody className="table-body">
+                  {quotes.map(q => (
+                    <tr key={q.id}>
+                      <td>
+                        <span className="font-semibold">{q.folio}</span>
+                      </td>
+                      <td>
+                        <div className="text-sm">
+                          {q.creadoPorEmail || q.creadoPor || 'Email no disponible'}
+                        </div>
+                      </td>
+                      <td>
+                        {q.createdAt?.toDate?.() 
+                          ? q.createdAt.toDate().toLocaleDateString('es-CO', {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric'
+                            })
+                          : '-'
+                        }
+                      </td>
+                      <td>
+                        <span className="font-semibold text-accent">
+                          ${q.total?.toLocaleString('es-CO') ?? 0} COP
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`badge ${
+                          q.status === 'approved' ? 'badge-success' :
+                          q.status === 'rejected' ? 'badge-error' :
+                          q.status === 'sent' ? 'badge-info' : 'badge-secondary'
+                        }`}>
+                          {q.status === 'approved' ? '✅ Aprobada' :
+                           q.status === 'rejected' ? '❌ Rechazada' :
+                           q.status === 'sent' ? '📤 Enviada' : '📝 Borrador'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </section>
+    </div>
   );
 }
