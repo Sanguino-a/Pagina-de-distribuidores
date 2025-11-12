@@ -375,14 +375,7 @@ chore: tareas de mantenimiento
 📄 Licencia
 Este proyecto está bajo la Licencia MIT. Ver LICENSE para más detalles.
 
-👥 Equipo
-Desarrollador Principal: Tu Nombre
-UI/UX Designer: Nombre del Diseñador
-Project Manager: Nombre del PM
-📞 Contacto
-Email: tu-email@ejemplo.com
-LinkedIn: Tu Perfil
-Portfolio: Tu Portfolio
+
 🏆 Características Destacadas
 ✅ Arquitectura escalable con React 18
 
