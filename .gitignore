@@ -152,8 +152,6 @@ Thumbs.db
 
 # Firebase
 .firebase/
-.firebaserc
-firebase.json
 
 # Build outputs
 build/
@@ -188,6 +186,10 @@ docs/build/
 sw.js
 sw.js.map
 workbox-*.js
+
+# Private key files (security)
+*.private
+secrets.json
 
 # Bundle analysis
 bundle-analyzer-report.html
