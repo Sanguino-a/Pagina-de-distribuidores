@@ -133,25 +133,3 @@ git count-objects -vH
 git reflog expire --expire=now --all && git gc --prune=now --aggressive
 ```
 
-## 🚨 ALERTAS DE SEGURIDAD:
-
-### ⚠️ CREDENCIALES COMPROMETIDAS DETECTADAS:
-- Las credenciales actuales de Firebase YA están en el historial público
-- Cualquiera puede encontrarlas con: `git log --all --source --full-history -- "*.env*"`
-- Deben regenerarse inmediatamente
-
-### 📝 CHECKLIST DE SEGURIDAD:
-- [ ] Eliminar credenciales del historial de Git
-- [ ] Regenerar todas las API keys comprometidas
-- [ ] Configurar GitHub secret scanning
-- [ ] Crear branch protection rules
-- [ ] Documentar el proceso de acceso a credenciales
-- [ ] Entrenar al equipo sobre manejo de secretos
-
-## 💡 CONSEJOS ADICIONALES:
-
-1. **Nunca commites archivos .env**
-2. **Usa diferentes credenciales por ambiente**
-3. **Rota las credenciales regularmente**
-4. **Limita permisos de API keys**
-5. **Monitorea el uso de credenciales**
