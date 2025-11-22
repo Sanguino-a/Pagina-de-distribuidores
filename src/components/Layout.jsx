@@ -5,7 +5,6 @@ import Footer from './Footer.jsx'
 export default function Layout() {
   return (
     <>
-      <a className="skip-link" href="#contenido">Saltar al contenido</a>
       <Header />
       <main id="contenido" className="container flow">
         <Outlet />
