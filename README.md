@@ -199,7 +199,11 @@ yarn deploy
 3. Navegar por secciones: Catálogo, Nueva Cotización, Historial
 
 #### Crear Cotización
+<<<<<<< HEAD
 1. **Agregar productos** desde el catálogo con botón " Agregar"
+=======
+1. **Agregar productos** desde el catálogo con botón "➕ Agregar"
+>>>>>>> 164f44fa64c9feb1f38814224012a1171fd8fd99
 2. **Completar detalles**: folio, validez (días), tiempo de entrega
 3. **Revisar tabla**: cantidades y precios automáticos
 4. **Validar formulario**: totales y campos requeridos
@@ -215,7 +219,11 @@ yarn deploy
    - ❌ Rechazada
    - ⏰ Expirada
 
+<<<<<<< HEAD
 ###  Para Analistas
+=======
+### 👨‍💼 Para Analistas
+>>>>>>> 164f44fa64c9feb1f38814224012a1171fd8fd99
 
 #### Acceso al Panel
 1. Iniciar sesión con rol "analista"
@@ -391,6 +399,7 @@ src/
 
 ##  Características Técnicas
 
+<<<<<<< HEAD
 ## Arquitectura Frontend-Backend Unificada
 
 ### Por que un solo repositorio para Frontend y Backend
@@ -494,6 +503,8 @@ Deploy unificado:
 
 Esta arquitectura permite enfocarse en la lógica de negocio y la experiencia del usuario, delegando la infraestructura compleja a Firebase.
 
+=======
+>>>>>>> 164f44fa64c9feb1f38814224012a1171fd8fd99
 ### Estado de la Aplicación
 - **Context API** para estado global
 - **LocalStorage** para persistencia temporal
