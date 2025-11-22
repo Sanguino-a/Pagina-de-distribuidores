@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { auth, db } from '../services/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { onAuthStateChanged, sendPasswordResetEmail } from 'firebase/auth';
+import { doc, getDoc, query, where, getDocs, collection } from 'firebase/firestore';
 
 const AuthContext = createContext();
 
@@ -34,8 +34,41 @@ export function AuthProvider({ children }) {
     return () => unsub();
   }, []);
 
+  const resetPassword = async (email) => {
+    try {
+      // First, check if the email exists in our users collection
+      const usersQuery = query(
+        collection(db, 'users'), 
+        where('email', '==', email.toLowerCase().trim())
+      );
+      
+      const querySnapshot = await getDocs(usersQuery);
+      
+      // If no user found with this email, return error
+      if (querySnapshot.empty) {
+        return { 
+          success: false, 
+          message: 'No se encontró una cuenta con este correo electrónico.' 
+        };
+      }
+      
+      // If user exists, send password reset email
+      await sendPasswordResetEmail(auth, email);
+      return { success: true, message: 'Email de restablecimiento enviado' };
+    } catch (error) {
+      console.error('Password reset error:', error);
+      return { success: false, message: error.message };
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, rol, userProfile, loading }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      rol, 
+      userProfile, 
+      loading,
+      resetPassword 
+    }}>
       {children}
     </AuthContext.Provider>
   );
